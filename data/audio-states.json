@@ -1,0 +1,29 @@
+{
+  "states": [
+    {
+      "name": "Chapter1",
+      "stems": {
+        "ambience": 0.5,
+        "melody": 0.8
+      }
+    },
+    {
+      "name": "Chapter2",
+      "stems": {
+        "ambience": 0.5,
+        "melody": 0.8,
+        "harmony": 0.7,
+        "percussion": 0.6,
+        "vocals": 0.7
+      }
+    },
+    {
+      "name": "PostGame_Run2",
+      "stems": {
+        "ambience": 0.3,
+        "melody": 0.4,
+        "harmony": 0.2
+      }
+    }
+  ]
+}
