@@ -1,6 +1,6 @@
 # Cinder
 
-Cinder is a standalone C++23 prototype of the audio subsystem planned for the **Umbra Engine**. It
+Cinder is a standalone C++26 prototype of the audio subsystem planned for the **Umbra Engine**. It
 exercises every major design surface of that subsystem — layered music stems, named audio states,
 per-stem effects, and one-shot sound effects — so the findings can inform whether Umbra should ship
 a custom audio backend or adopt an off-the-shelf library like miniaudio.
@@ -31,8 +31,8 @@ CMake.
 
 ## Requirements
 
-- CMake 3.25+
-- A C++23 compiler
+- CMake 3.30+
+- A C++26 compiler: GCC 14+ or Clang 18+ (or a recent AppleClang)
 - macOS or Linux (no other platforms are supported)
 - On Linux: ALSA development headers (`libasound2-dev` on Debian/Ubuntu)
 
