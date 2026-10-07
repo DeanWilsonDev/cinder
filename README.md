@@ -32,7 +32,7 @@ CMake.
 ## Requirements
 
 - CMake 3.30+
-- A C++26 compiler: GCC 14+ or Clang 18+ (or a recent AppleClang)
+- A C++26 compiler: GCC 14+ or Clang 19+ (or a recent AppleClang)
 - macOS or Linux (no other platforms are supported)
 - On Linux: ALSA development headers (`libasound2-dev` on Debian/Ubuntu)
 
