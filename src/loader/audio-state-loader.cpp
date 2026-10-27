@@ -57,6 +57,12 @@ std::vector<AudioState> AudioStateLoader::LoadFromFile(const std::string& filePa
           filePath, stateIndex);
       continue;
     }
+    if (!Amanuensis::Json::IsString(*Amanuensis::Json::Find(stateValue, "name"))) {
+      LOG_ERROR(
+          "Audio state file '{}' is malformed: state at index {} has a 'name' that isn't a string",
+          filePath, stateIndex);
+      continue;
+    }
 
     AudioState state;
     state.stateName = Amanuensis::Json::AsString(Amanuensis::Json::Get(stateValue, "name"));
@@ -69,9 +75,18 @@ std::vector<AudioState> AudioStateLoader::LoadFromFile(const std::string& filePa
       continue;
     }
 
+    bool stemsAreNumbers = true;
     for (auto it = Amanuensis::Json::BeginObject(*stems); it != Amanuensis::Json::EndObject(*stems); ++it) {
+      if (!Amanuensis::Json::IsNumber(it->second)) {
+        LOG_ERROR(
+            "Audio state '{}' in '{}' is malformed: stem '{}' has a volume that isn't a number",
+            state.stateName, filePath, it->first);
+        stemsAreNumbers = false;
+        break;
+      }
       state.stemTargetVolumes[it->first] = AsFloatNumber(it->second);
     }
+    if (!stemsAreNumbers) continue;
 
     LOG_INFO(
         "Loaded audio state '{}' with {} stem target(s) from '{}'", state.stateName,
