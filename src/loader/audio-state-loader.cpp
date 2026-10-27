@@ -1,24 +1,24 @@
 #include "audio-state-loader.hpp"
 
 #include <amanuensis/io/reader.hpp>
-#include <amanuensis/value.hpp>
+#include <amanuensis/json.hpp>
 #include <firefly/log.hpp>
 
 namespace Cinder {
 
 namespace {
 
-// Amanuensis::Value::AsDouble() throws unless the JSON literal contained a
-// decimal point (i.e. was parsed as ValueType::Double); a bare integer like
+// Amanuensis::Json::AsDouble() throws unless the JSON literal contained a
+// decimal point (i.e. was parsed as JsonValueType::Double); a bare integer like
 // "melody": 1 parses as ValueType::Integer instead. Coerce either numeric
 // representation to float so state authors don't have to remember to write
 // "1.0" instead of "1".
-float AsFloatNumber(const Amanuensis::Value& value)
+float AsFloatNumber(const Amanuensis::JsonValue& value)
 {
-  if (value.IsInteger()) {
-    return static_cast<float>(value.AsInteger());
+  if (Amanuensis::Json::IsInteger(value)) {
+    return static_cast<float>(Amanuensis::Json::AsInteger(value));
   }
-  return static_cast<float>(value.AsDouble());
+  return static_cast<float>(Amanuensis::Json::AsDouble(value));
 }
 
 } // namespace
@@ -27,7 +27,7 @@ std::vector<AudioState> AudioStateLoader::LoadFromFile(const std::string& filePa
 {
   std::vector<AudioState> states;
 
-  Amanuensis::ParseResult result = Amanuensis::Reader::ParseFile(filePath);
+  Amanuensis::JsonParseResult result = Amanuensis::Reader::ParseFile(filePath);
   if (!result.succeeded) {
     LOG_ERROR(
         "Failed to load audio states from '{}': {}:{} {}", filePath, result.error.line,
@@ -35,42 +35,58 @@ std::vector<AudioState> AudioStateLoader::LoadFromFile(const std::string& filePa
     return states;
   }
 
-  const Amanuensis::Value& root = result.value;
-  if (!root.IsObject() || !root.Contains("states")) {
+  const Amanuensis::JsonValue& root = result.value;
+  const Amanuensis::JsonValue* statesArray =
+      Amanuensis::Json::IsObject(root) ? Amanuensis::Json::Find(root, "states") : nullptr;
+  if (statesArray == nullptr) {
     LOG_ERROR("Audio state file '{}' is malformed: missing top-level 'states' array", filePath);
     return states;
   }
 
-  const Amanuensis::Value& statesArray = root.Get("states");
-  if (!statesArray.IsArray()) {
+  if (!Amanuensis::Json::IsArray(*statesArray)) {
     LOG_ERROR("Audio state file '{}' is malformed: 'states' is not an array", filePath);
     return states;
   }
 
-  for (std::size_t stateIndex = 0; stateIndex < statesArray.Size(); ++stateIndex) {
-    const Amanuensis::Value& stateValue = statesArray.At(stateIndex);
-    if (!stateValue.IsObject() || !stateValue.Contains("name") ||
-        !stateValue.Contains("stems")) {
+  for (std::size_t stateIndex = 0; stateIndex < Amanuensis::Json::Size(*statesArray); ++stateIndex) {
+    const Amanuensis::JsonValue& stateValue = Amanuensis::Json::At(*statesArray, stateIndex);
+    if (!Amanuensis::Json::IsObject(stateValue) || !Amanuensis::Json::Contains(stateValue, "name") ||
+        !Amanuensis::Json::Contains(stateValue, "stems")) {
       LOG_ERROR(
           "Audio state file '{}' is malformed: state at index {} is missing 'name' or 'stems'",
           filePath, stateIndex);
       continue;
     }
+    if (!Amanuensis::Json::IsString(*Amanuensis::Json::Find(stateValue, "name"))) {
+      LOG_ERROR(
+          "Audio state file '{}' is malformed: state at index {} has a 'name' that isn't a string",
+          filePath, stateIndex);
+      continue;
+    }
 
     AudioState state;
-    state.stateName = stateValue.Get("name").AsString();
+    state.stateName = Amanuensis::Json::AsString(Amanuensis::Json::Get(stateValue, "name"));
 
-    const Amanuensis::Value& stems = stateValue.Get("stems");
-    if (!stems.IsObject()) {
+    const Amanuensis::JsonValue* stems = Amanuensis::Json::Find(stateValue, "stems");
+    if (!Amanuensis::Json::IsObject(*stems)) {
       LOG_ERROR(
           "Audio state '{}' in '{}' is malformed: 'stems' is not an object", state.stateName,
           filePath);
       continue;
     }
 
-    for (auto it = stems.BeginObject(); it != stems.EndObject(); ++it) {
+    bool stemsAreNumbers = true;
+    for (auto it = Amanuensis::Json::BeginObject(*stems); it != Amanuensis::Json::EndObject(*stems); ++it) {
+      if (!Amanuensis::Json::IsNumber(it->second)) {
+        LOG_ERROR(
+            "Audio state '{}' in '{}' is malformed: stem '{}' has a volume that isn't a number",
+            state.stateName, filePath, it->first);
+        stemsAreNumbers = false;
+        break;
+      }
       state.stemTargetVolumes[it->first] = AsFloatNumber(it->second);
     }
+    if (!stemsAreNumbers) continue;
 
     LOG_INFO(
         "Loaded audio state '{}' with {} stem target(s) from '{}'", state.stateName,
